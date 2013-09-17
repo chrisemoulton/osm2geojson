@@ -76,7 +76,7 @@ public class ResourceUtil {
                 StringBuilder buf = new StringBuilder();
                 String line;
                 while((line=r.readLine()) != null) {
-                    buf.append(line +'\n');
+                    buf.append(line).append('\n');
                 }
                 return buf.toString();
             } finally {

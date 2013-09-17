@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<relation id="2186943" version="4" changeset="13008864" uid="51782" user="maxbe" timestamp="2012-09-06T11:33:18Z">
+    <member type="way" ref="164091829" role="outer"/>
+    <member type="way" ref="163991728" role="outer"/>
+    <member type="way" ref="161921325" role="outer"/>
+    <member type="way" ref="161909044" role="outer"/>
+    <tag k="admin_level" v="8" />
+    <tag k="boundary" v="administrative" />
+    <tag k="de:amtlicher_gemeindeschluessel" v="09187174" />
+    <tag k="name" v="Söchtenau" />
+    <tag k="type" v="multipolygon" />
+    <tag k="wikipedia" v="de:Söchtenau" />
+</relation>

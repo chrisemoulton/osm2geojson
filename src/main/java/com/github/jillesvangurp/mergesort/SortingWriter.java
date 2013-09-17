@@ -75,7 +75,7 @@ public class SortingWriter implements Closeable {
         try {
             boolean added = bucket.put(key, value);
             if(!added) {
-                // TODO better alternative than loggin?
+                // TODO better alternative than log?
                 // LOG.warn("failed to add " +key+";"+value);
             } else {
                 loggingCounter.inc();
@@ -121,7 +121,7 @@ public class SortingWriter implements Closeable {
             flushBucket(true);
         }
         loggingCounter.close();
-        LoggingCounter mergeCounter = LoggingCounter.counter(LOG, "merge buckets into "  + output, " lines", 100000);
+        LoggingCounter mergeCounter = LoggingCounter.counter(LOG, "merge buckets into "  + output, " lines", 1000000);
         List<LineIterable> lineIterables = new ArrayList<>();
         try {
             // important, ensure you have enough filehandles available for the number of buckets. In Linux, you may need to configure this. See README.
