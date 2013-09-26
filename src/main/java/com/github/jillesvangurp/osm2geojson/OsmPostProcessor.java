@@ -259,10 +259,13 @@ public class OsmPostProcessor {
                         // or just type=boundary|multipolygon?
                         String id = input.getString("id");
                         String name = input.getString("tags", "name");
-                        if (name == null) {
+                        if (name == null)
                             return null;
-                        }
+
                         JsonObject geometry = getGeometryForRelation(input);
+                        if (geometry == null)
+                            return null;
+
                         JsonObject geoJson = $(
                                 _("id", "osmrelation/" + id),
                                 _("title", name),
@@ -296,17 +299,23 @@ public class OsmPostProcessor {
 
     private JsonObject getGeometryForRelation(JsonObject input) {
         // TODO ensure orientation of the area (e.g. counter clockwise)
+        // TODO we assume outer boundaries only
         // TODO use admin_centre for center  
+        // http://wiki.openstreetmap.org/wiki/Relation:boundary
 
         JsonArray coordinates = array();
-        // for administration boundaries we only need ways
+        // for administration boundaries we only need ways        
         Map<String, JsonObject> ways = new HashMap<>();
         for (JsonObject w : input.getArray("ways").objects()) {
             ways.put(w.getString("id"), w);
         }
 
+        long lastId = -1;
+        long firstId = -1;
+        int outerMember = -1;
         for (JsonObject mem : input.getArray("members").objects()) {
             if ("outer".equals(mem.getString("role"))) {
+                outerMember++;
                 JsonObject w = ways.get(mem.getString("id"));
                 JsonArray arr = w.getArray("nodes");
                 boolean reverse = false;
@@ -314,34 +323,65 @@ public class OsmPostProcessor {
                     continue;
 
                 if (!coordinates.isEmpty()) {
-                    JsonArray firstPoint = arr.get(0).asObject().getArray("l");
-                    JsonArray lastPoint = coordinates.get(coordinates.size() - 1).asArray();
-                    if (firstPoint.get(0).asDouble() != lastPoint.get(0).asDouble()
-                            || firstPoint.get(1).asDouble() != lastPoint.get(1).asDouble()) {
-                        // TODO now it should be 'last of arr' == lastPoint => check that
-                        reverse = true;
+//                    JsonArray firstPoint = arr.get(0).asObject().getArray("l");
+//                    JsonArray lastPoint = coordinates.get(coordinates.size() - 1).asArray();
+//                    if (firstPoint.get(0).asDouble() != lastPoint.get(0).asDouble()
+//                            || firstPoint.get(1).asDouble() != lastPoint.get(1).asDouble()) {
+//                        // TODO now it should be 'last of arr' == lastPoint => check that
+//                        reverse = true;
+//                    }
+
+                    for (int i = 0; i < 2; i++) {
+                        long tmpFirstId = arr.get(0).asObject().getLong("id");
+                        long tmpLastId = arr.get(arr.size() - 1).asObject().getLong("id");
+                        if (tmpFirstId == lastId) {
+                            lastId = tmpLastId;
+                            break;
+                        } else {
+                            if (tmpLastId != lastId) {                                
+                                if (outerMember == 1) {
+                                    // in case the first way had the wrong direction
+                                    JsonArray reversed = reverse(coordinates.asArray());
+                                    coordinates.clear();
+                                    coordinates.add(reversed);
+                                    lastId = firstId;
+                                    continue;
+                                }
+
+                                throw new IllegalStateException(outerMember + ": At least one id of " + tmpFirstId + ","
+                                        + tmpLastId + " should match " + lastId + ", was:" + input.toString());
+                            }
+
+
+                            reverse = true;
+                            lastId = tmpFirstId;
+                            break;
+                        }
                     }
                 } else {
-                    // include the *very* first point
+                    // include the *very* first point                    
                     coordinates.add(arr.get(0).asObject().getArray("l"));
+                    // init start+end ids
+                    firstId = arr.get(0).asObject().getLong("id");
+                    lastId = arr.get(arr.size() - 1).asObject().getLong("id");
                 }
+
+                if (reverse)
+                    arr = reverse(arr);
+
                 // skip the first of every way
-                if (reverse) {
-                    // reverse is a bit ugly for JsonArray
-                    for (int i = arr.size() - 2; i >= 0; i--) {
-                        JsonObject n = arr.get(i).asObject();
-                        coordinates.add(n.getArray("l"));
-                    }
-                } else
-                    for (int i = 1; i < arr.size(); i++) {
-                        JsonObject n = arr.get(i).asObject();
-                        coordinates.add(n.getArray("l"));
-                    }
+                for (int i = 1; i < arr.size(); i++) {
+                    JsonObject n = arr.get(i).asObject();
+                    coordinates.add(n.getArray("l"));
+                }
             }
         }
 
-        System.out.println(input.get("title") + " -> " + coordinates);
-        
+        if (coordinates.isEmpty())
+            return null;
+
+        // System.out.println(input.getObject("tags").get("name") + " -> " + coordinates);
+
         String type = "LineString";
         if (coordinates.get(0).equals(coordinates.get(coordinates.size() - 1))) {
             type = "Polygon";
@@ -351,6 +391,15 @@ public class OsmPostProcessor {
         }
         JsonObject geometry = $(_("type", type), _("coordinates", coordinates));
         return geometry;
+    }
+
+    public static JsonArray reverse(JsonArray arr) {
+        JsonArray res = new JsonArray();
+        for (int i = arr.size() - 1; i >= 0; i--) {
+            JsonElement el = arr.get(i);
+            res.add(el);
+        }
+        return res;
     }
 
     protected JsonObject interpretTags(JsonObject input, JsonObject geoJson) {

@@ -5,7 +5,6 @@ import com.github.jillesvangurp.osm2geojson.OsmPostProcessor.JsonWriter;
 import com.github.jillesvangurp.osm2geojson.OsmPostProcessor.OsmType;
 import com.github.jsonj.JsonArray;
 import com.github.jsonj.JsonObject;
-import com.github.jsonj.tools.GeoJsonSupport;
 import com.github.jsonj.tools.JsonParser;
 import com.jillesvangurp.iterables.LineIterable;
 import java.io.IOException;
@@ -44,10 +43,12 @@ public class OsmPostProcessorTest {
         JsonParser jsonParser = new JsonParser();
         JsonObject o1 = jsonParser.parse(ResourceUtil.string(getClass().getResourceAsStream("relobject1.json"))).asObject();
         JsonObject o2 = jsonParser.parse(ResourceUtil.string(getClass().getResourceAsStream("relobject2.json"))).asObject();
+        JsonObject o3 = jsonParser.parse(ResourceUtil.string(getClass().getResourceAsStream("relobject3.json"))).asObject();        
         LineIterable it = new LineIterable(new StringReader("1;" + o1.toString() + "\n"
-                + "2;" + o2.toString() + "\n"));
+                + "2;" + o2.toString() + "\n"
+                + "3;" + o3.toString() + "\n"));
         postProcessor.processRelations(it, 1);
-        assertThat(list.size(), equalTo(2));
+        assertThat(list.size(), equalTo(3));
 
         JsonObject o = list.get(0).get("geometry").asObject();
         assertThat(o.getString("type"), is("Polygon"));

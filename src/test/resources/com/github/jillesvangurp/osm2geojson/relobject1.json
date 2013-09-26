@@ -1,6 +1,7 @@
 {
     "id":1021759,
     "tags":{
+        "tempname": "relobject1",
         "admin_level":"8",
         "boundary":"administrative",    
         "name":"Marktrodach",
@@ -45,13 +46,13 @@
             "source:url":"www.geodaten.bayern.de"
         },
         "nodes":[{
-            "id":44,
+            "id":14,
             "l":[1,1.6]
         },{
             "id":45,
             "l":[0.4,1.5]
         },{
-            "id":33,
+            "id":1,
             "l":[0,1]
         }]
     },{
@@ -75,14 +76,14 @@
             "boundary":"administrative",            
         },        
         "nodes":[{
-            "id":11,
+            "id":14,
             "l":[1,1.6]
         },{
-            "id":12,
+            "id":13,
             "l":[1.6,1.5]
         },{
-            "id":22,
-            "l":[2.1]
+            "id":12,
+            "l":[2,1]
         }]
     },{
         "id":1,
@@ -111,7 +112,7 @@
             "id":12,
             "l":[2,1]
         },{
-            "id":11,
+            "id":2,
             "l":[1,0]
         }]
     }]
