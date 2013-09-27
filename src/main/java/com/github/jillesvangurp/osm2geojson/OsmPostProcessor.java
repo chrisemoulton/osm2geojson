@@ -300,7 +300,14 @@ public class OsmPostProcessor {
 
     class WayManager {
 
-        Map<Long, NodeIdEntry> nodeIds2Ways = new LinkedHashMap<>();
+        private final Object relId;
+        private final String name;
+        private Map<Long, NodeIdEntry> nodeIds2Ways = new LinkedHashMap<>();
+
+        public WayManager(Object relId, String name) {
+            this.relId = relId;
+            this.name = name;
+        }
 
         public boolean isEmpty() {
             return nodeIds2Ways.isEmpty();
@@ -324,20 +331,23 @@ public class OsmPostProcessor {
             add(lastId, firstId, reverse(arr));
         }
 
-        private void add(long id, long nextId, JsonArray arr) {
-            NodeIdEntry e = nodeIds2Ways.get(id);
+        private void add(long nodeId, long nextNodeId, JsonArray arr) {
+            NodeIdEntry e = nodeIds2Ways.get(nodeId);
             if (e == null) {
                 e = new NodeIdEntry();
                 e.first = arr;
-                e.id = id;
-                e.firstNextId = nextId;
-                nodeIds2Ways.put(id, e);
+                e.id = nodeId;
+                e.firstNextId = nextNodeId;
+                nodeIds2Ways.put(nodeId, e);
             } else {
                 if (e.first == null)
-                    throw new IllegalStateException("first pointer should be already assigned " + id + ", " + arr);
-                if (e.second != null)
-                    throw new IllegalStateException("second pointer was already assigned " + id + ", " + arr + ", second:" + e.second);
-                e.secondNextId = nextId;
+                    throw new IllegalStateException("first pointer should be already assigned. node:" + nodeId + ", relId:" + relId + "," + name);
+                if (e.second != null) {
+                    // ignore loops like in 'Weißenburg-Gunzenhausen' http://www.openstreetmap.org/browse/relation/62390 -> see way 194213149
+                    LOG.warn("second pointer was already assigned. node:" + nodeId + ", relId:" + relId + "," + name);
+                    return;
+                }
+                e.secondNextId = nextNodeId;
                 e.second = arr;
             }
         }
@@ -366,7 +376,9 @@ public class OsmPostProcessor {
         // WayManager is used to make arbitrary ordering of the ways possible and they'll be connected
         // via their id. See e.g. 'Landkreis Hof' http://www.openstreetmap.org/browse/relation/2145179
         // which has a multi polygon and 'Way 235603311' is not at the correct place (between "Way Germany - Czech Republic (166216396)" and "Way 148994491")
-        WayManager wayManager = new WayManager();
+        Object id = input.getObject("tags").get("id");
+        String name = input.getObject("tags").get("name").asString();
+        WayManager wayManager = new WayManager(id, name);
         for (JsonObject w : input.getArray("ways").objects()) {
             ways.put(w.getString("id"), w);
 
@@ -411,8 +423,6 @@ public class OsmPostProcessor {
 
         if (coordinates.isEmpty())
             return null;
-
-        System.out.println(input.getObject("tags").get("name") + " -> " + coordinates);
 
         String type = "LineString";
         if (coordinates.get(0).equals(coordinates.get(coordinates.size() - 1))) {
