@@ -367,7 +367,6 @@ public class OsmPostProcessor {
         // http://wiki.openstreetmap.org/wiki/Relation:boundary
 
         JsonArray coordinates = array();
-        JsonObject geoInfo = new JsonObject();
         Map<String, JsonObject> ways = new HashMap<>();
         // WayManager is used to make arbitrary ordering of the ways possible and they'll be connected
         // via their id. See e.g. 'Landkreis Hof' http://www.openstreetmap.org/browse/relation/2145179
@@ -381,15 +380,17 @@ public class OsmPostProcessor {
         }
         // for administration boundaries we only need outer ways    
         for (JsonObject mem : input.getArray("members").objects()) {
-            if ("outer".equals(mem.getString("role"))) {
+            String role = mem.getString("role");
+            if ("outer".equals(role)) {
                 JsonObject w = ways.get(mem.getString("id"));
                 wayManager.add(w.getArray("nodes"));
 
-            } else if ("label".equals(mem.getString("role"))) {
-                if (geoInfo.containsKey("relation_center_node"))
-                    LOG.warn("label already exist? " + geoInfo.get("relation_center_node") + ", " + id + "," + name);
+            } else if ("admin_centre".equals(role) && "node".equals(mem.getString("type"))) {
+                // TODO if there is a label only use that as alternative?
+                if (output.containsKey("admin_centre"))
+                    LOG.warn("multiple admin_centre exist!? " + output.get("admin_centre") + ", " + id + "," + name);
                 else
-                    geoInfo.put("relation_center_node", mem.getString("id"));
+                    output.put("admin_centre", mem.getString("id"));
             }
         }
 
@@ -434,8 +435,7 @@ public class OsmPostProcessor {
             coordinates.add(cs);
         }
         JsonObject geometry = $(_("type", type), _("coordinates", coordinates));
-        output.put("geometry", geometry);
-        output.put("geo_info", geoInfo);
+        output.put("geometry", geometry);        
     }
 
     public static JsonArray reverse(JsonArray arr) {
