@@ -198,11 +198,11 @@ public class OsmPostProcessor {
                         if (name == null) {
                             return null;
                         }
-                        JsonObject geometry = getWayGeometry(input);
                         JsonObject geoJson = $(
                                 _("id", "osmway/" + id),
-                                _("title", name),
-                                _("geometry", geometry));
+                                _("title", name));
+                        handleWay(input, geoJson);
+
                         geoJson = interpretTags(input, geoJson);
                         counter.inc();
                         return geoJson;
@@ -223,7 +223,7 @@ public class OsmPostProcessor {
         }
     }
 
-    private JsonObject getWayGeometry(JsonObject input) {
+    protected void handleWay(JsonObject input, JsonObject output) {
         JsonArray coordinates = array();
         for (JsonObject n : input.getArray("nodes").objects()) {
             coordinates.add(n.getArray("l"));
@@ -235,8 +235,8 @@ public class OsmPostProcessor {
             coordinates = array();
             coordinates.add(cs);
         }
-        JsonObject geometry = $(_("type", type), _("coordinates", coordinates));
-        return geometry;
+
+        output.put("geometry", $(_("type", type), _("coordinates", coordinates)));
     }
 
     public void processRelations() {
@@ -254,27 +254,22 @@ public class OsmPostProcessor {
                 Processor<String, JsonObject> p = compose(entryParsingProcessor, jsonParsingProcessor, new Processor<JsonObject, JsonObject>() {
                     @Override
                     public JsonObject process(JsonObject input) {
-                        // extract administration bounds
-                        // <relation id="2"> <tag k="type" v="boundary" /> or <tag k="boundary" v="administrative" />
-                        // fixme: also include boundary=political?
-                        // or just type=boundary|multipolygon?
                         String id = input.getString("id");
                         String name = input.getString("tags", "name");
                         if (name == null)
                             return null;
 
-                        JsonObject geometry = getGeometryForRelation(input);
-                        if (geometry == null)
-                            return null;
-
+                        // extract only administration bounds for now
                         JsonObject geoJson = $(
                                 _("id", "osmrelation/" + id),
-                                _("title", name),
-                                _("geometry", geometry));
+                                _("title", name));
+                        handleRelation(input, geoJson);
+                        if (!geoJson.containsKey("geometry"))
+                            return null;
+
                         geoJson = interpretTags(input, geoJson);
                         counter.inc();
 
-                        // extract admin_levels (60K) multi_polygons
                         // extract public transport routes (62K)
                         // associated street (30K)
                         // TMC ??? some traffic meta data (17K)
@@ -366,12 +361,13 @@ public class OsmPostProcessor {
         }
     }
 
-    private JsonObject getGeometryForRelation(JsonObject input) {
+    protected void handleRelation(JsonObject input, JsonObject output) {
         // TODO ensure orientation of the area (e.g. counter clockwise)
         // TODO use admin_centre for center and create boundary out of place tag and distance heuristic
         // http://wiki.openstreetmap.org/wiki/Relation:boundary
 
         JsonArray coordinates = array();
+        JsonObject geoInfo = new JsonObject();
         Map<String, JsonObject> ways = new HashMap<>();
         // WayManager is used to make arbitrary ordering of the ways possible and they'll be connected
         // via their id. See e.g. 'Landkreis Hof' http://www.openstreetmap.org/browse/relation/2145179
@@ -388,6 +384,12 @@ public class OsmPostProcessor {
             if ("outer".equals(mem.getString("role"))) {
                 JsonObject w = ways.get(mem.getString("id"));
                 wayManager.add(w.getArray("nodes"));
+
+            } else if ("label".equals(mem.getString("role"))) {
+                if (geoInfo.containsKey("relation_center_node"))
+                    LOG.warn("label already exist? " + geoInfo.get("relation_center_node"));
+                else
+                    geoInfo.put("relation_center_node", mem.getString("id"));
             }
         }
 
@@ -422,7 +424,7 @@ public class OsmPostProcessor {
         }
 
         if (coordinates.isEmpty())
-            return null;
+            return;
 
         String type = "LineString";
         if (coordinates.get(0).equals(coordinates.get(coordinates.size() - 1))) {
@@ -432,7 +434,8 @@ public class OsmPostProcessor {
             coordinates.add(cs);
         }
         JsonObject geometry = $(_("type", type), _("coordinates", coordinates));
-        return geometry;
+        output.put("geometry", geometry);
+        output.put("geo_info", geoInfo);
     }
 
     public static JsonArray reverse(JsonArray arr) {
