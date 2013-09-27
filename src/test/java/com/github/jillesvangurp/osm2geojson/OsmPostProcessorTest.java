@@ -41,14 +41,19 @@ public class OsmPostProcessorTest {
             }
         }.setThreadPoolSize(2).setReadBlockSize(1);
         JsonParser jsonParser = new JsonParser();
-        JsonObject o1 = jsonParser.parse(ResourceUtil.string(getClass().getResourceAsStream("relobject1.json"))).asObject();
-        JsonObject o2 = jsonParser.parse(ResourceUtil.string(getClass().getResourceAsStream("relobject2.json"))).asObject();
-        JsonObject o3 = jsonParser.parse(ResourceUtil.string(getClass().getResourceAsStream("relobject3.json"))).asObject();        
-        LineIterable it = new LineIterable(new StringReader("1;" + o1.toString() + "\n"
+        JsonObject o0 = jsonParser.parse(ResourceUtil.string(getClass().getResourceAsStream("relobject1.json"))).asObject();
+        JsonObject o1 = jsonParser.parse(ResourceUtil.string(getClass().getResourceAsStream("relobject2.json"))).asObject();
+        JsonObject o2 = jsonParser.parse(ResourceUtil.string(getClass().getResourceAsStream("relobject3.json"))).asObject();
+        // Landkreis Hof is problematic:
+        // see "Way Germany - Czech Republic (166216396)" and "Way 148994491" where "Way 235603311" is missing and just appended! Probably due to the multipolygon stuff
+        // http://www.openstreetmap.org/browse/relation/2145179
+        JsonObject o3 = jsonParser.parse(ResourceUtil.string(getClass().getResourceAsStream("relobject4.json"))).asObject();
+        LineIterable it = new LineIterable(new StringReader("0;" + o0.toString() + "\n"
+                + "1;" + o1.toString() + "\n"
                 + "2;" + o2.toString() + "\n"
                 + "3;" + o3.toString() + "\n"));
         postProcessor.processRelations(it, 1);
-        assertThat(list.size(), equalTo(3));
+        assertThat(list.size(), equalTo(4));
 
         JsonObject o = list.get(0).get("geometry").asObject();
         assertThat(o.getString("type"), is("Polygon"));
@@ -56,5 +61,17 @@ public class OsmPostProcessorTest {
         assertThat(arr.size(), equalTo(7));
 
         assertThat(arr.get(2).toString(), equalTo("[2,1]"));
+        
+        // reverse order of what is in members
+        // 2nd way. way id 146126567
+        assertThat(list.get(2).getObject("geometry").getArray("coordinates").get(0).asArray().get(5).toString(),
+                equalTo("[10.9979997,48.2868964]"));
+        // last way. first and last of way id 146086042
+        assertThat(list.get(2).getObject("geometry").getArray("coordinates").get(0).asArray().get(0).toString(),
+                equalTo("[10.9505042,48.3266102]"));        
+        assertThat(list.get(2).getObject("geometry").getArray("coordinates").get(0).asArray().get(9).toString(),
+                equalTo("[11.023158,48.297985]"));
+        
+        assertThat(list.get(3).toString(), equalTo(list.get(2).toString()));
     }
 }

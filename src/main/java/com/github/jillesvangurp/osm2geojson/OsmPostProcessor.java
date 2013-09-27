@@ -29,6 +29,7 @@ import com.jillesvangurp.iterables.Processor;
 import java.io.Closeable;
 import java.io.File;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
@@ -297,82 +298,113 @@ public class OsmPostProcessor {
         }
     }
 
+    class WayManager {
+
+        Map<Long, NodeIdEntry> nodeIds2Ways = new LinkedHashMap<>();
+
+        public boolean isEmpty() {
+            return nodeIds2Ways.isEmpty();
+        }
+
+        public NodeIdEntry getFirst() {
+            return nodeIds2Ways.values().iterator().next();
+        }
+
+        public NodeIdEntry get(long id) {
+            NodeIdEntry e = nodeIds2Ways.get(id);
+            return e;
+        }
+
+        public void add(JsonArray arr) {
+            long firstId = arr.get(0).asObject().getLong("id");
+            long lastId = arr.get(arr.size() - 1).asObject().getLong("id");
+
+            add(firstId, lastId, arr);
+
+            add(lastId, firstId, reverse(arr));
+        }
+
+        private void add(long id, long nextId, JsonArray arr) {
+            NodeIdEntry e = nodeIds2Ways.get(id);
+            if (e == null) {
+                e = new NodeIdEntry();
+                e.first = arr;
+                e.id = id;
+                e.firstNextId = nextId;
+                nodeIds2Ways.put(id, e);
+            } else {
+                if (e.first == null)
+                    throw new IllegalStateException("first pointer should be already assigned " + id + ", " + arr);
+                if (e.second != null)
+                    throw new IllegalStateException("second pointer was already assigned " + id + ", " + arr + ", second:" + e.second);
+                e.secondNextId = nextId;
+                e.second = arr;
+            }
+        }
+    }
+
+    /* every id belongs to two arrays */
+    class NodeIdEntry {
+
+        long id;
+        long firstNextId = -1, secondNextId = -1;
+        JsonArray first;
+        JsonArray second;
+
+        @Override public String toString() {
+            return id + " " + firstNextId + " " + secondNextId;
+        }
+    }
+
     private JsonObject getGeometryForRelation(JsonObject input) {
         // TODO ensure orientation of the area (e.g. counter clockwise)
-        // TODO we assume outer boundaries only
-        // TODO use admin_centre for center  
+        // TODO use admin_centre for center and create boundary out of place tag and distance heuristic
         // http://wiki.openstreetmap.org/wiki/Relation:boundary
 
         JsonArray coordinates = array();
-        // for administration boundaries we only need ways        
         Map<String, JsonObject> ways = new HashMap<>();
+        // WayManager is used to make arbitrary ordering of the ways possible and they'll be connected
+        // via their id. See e.g. 'Landkreis Hof' http://www.openstreetmap.org/browse/relation/2145179
+        // which has a multi polygon and 'Way 235603311' is not at the correct place (between "Way Germany - Czech Republic (166216396)" and "Way 148994491")
+        WayManager wayManager = new WayManager();
         for (JsonObject w : input.getArray("ways").objects()) {
             ways.put(w.getString("id"), w);
-        }
 
-        long lastId = -1;
-        long firstId = -1;
-        int outerMember = -1;
+        }
+        // for administration boundaries we only need outer ways    
         for (JsonObject mem : input.getArray("members").objects()) {
             if ("outer".equals(mem.getString("role"))) {
-                outerMember++;
                 JsonObject w = ways.get(mem.getString("id"));
-                JsonArray arr = w.getArray("nodes");
-                boolean reverse = false;
-                if (arr.isEmpty())
-                    continue;
+                wayManager.add(w.getArray("nodes"));
+            }
+        }
 
-                if (!coordinates.isEmpty()) {
-//                    JsonArray firstPoint = arr.get(0).asObject().getArray("l");
-//                    JsonArray lastPoint = coordinates.get(coordinates.size() - 1).asArray();
-//                    if (firstPoint.get(0).asDouble() != lastPoint.get(0).asDouble()
-//                            || firstPoint.get(1).asDouble() != lastPoint.get(1).asDouble()) {
-//                        // TODO now it should be 'last of arr' == lastPoint => check that
-//                        reverse = true;
-//                    }
-
-                    for (int i = 0; i < 2; i++) {
-                        long tmpFirstId = arr.get(0).asObject().getLong("id");
-                        long tmpLastId = arr.get(arr.size() - 1).asObject().getLong("id");
-                        if (tmpFirstId == lastId) {
-                            lastId = tmpLastId;
-                            break;
-                        } else {
-                            if (tmpLastId != lastId) {                                
-                                if (outerMember == 1) {
-                                    // in case the first way had the wrong direction
-                                    JsonArray reversed = reverse(coordinates.asArray());
-                                    coordinates.clear();
-                                    coordinates.add(reversed);
-                                    lastId = firstId;
-                                    continue;
-                                }
-
-                                throw new IllegalStateException(outerMember + ": At least one id of " + tmpFirstId + ","
-                                        + tmpLastId + " should match " + lastId + ", was:" + input.toString());
-                            }
-
-
-                            reverse = true;
-                            lastId = tmpFirstId;
-                            break;
-                        }
-                    }
-                } else {
-                    // include the *very* first point                    
-                    coordinates.add(arr.get(0).asObject().getArray("l"));
-                    // init start+end ids
-                    firstId = arr.get(0).asObject().getLong("id");
-                    lastId = arr.get(arr.size() - 1).asObject().getLong("id");
-                }
-
-                if (reverse)
-                    arr = reverse(arr);
+        if (!wayManager.isEmpty()) {
+            NodeIdEntry first = wayManager.getFirst(), e = first;
+            long nextId = e.firstNextId;
+            JsonArray arr = e.first;
+            if (!arr.isEmpty())
+                coordinates.add(arr.get(0).asObject().getArray("l"));
+            while (true) {
+                if (arr == null)
+                    throw new IllegalStateException("Array must not be null. Something is wrong with: " + input);
 
                 // skip the first of every way
                 for (int i = 1; i < arr.size(); i++) {
                     JsonObject n = arr.get(i).asObject();
                     coordinates.add(n.getArray("l"));
+                }
+                long oldId = e.id;
+                e = wayManager.get(nextId);
+                if (e == first)
+                    break;
+
+                if (oldId == e.firstNextId) {
+                    nextId = e.secondNextId;
+                    arr = e.second;
+                } else {
+                    nextId = e.firstNextId;
+                    arr = e.first;
                 }
             }
         }
@@ -380,7 +412,7 @@ public class OsmPostProcessor {
         if (coordinates.isEmpty())
             return null;
 
-        // System.out.println(input.getObject("tags").get("name") + " -> " + coordinates);
+        System.out.println(input.getObject("tags").get("name") + " -> " + coordinates);
 
         String type = "LineString";
         if (coordinates.get(0).equals(coordinates.get(coordinates.size() - 1))) {
