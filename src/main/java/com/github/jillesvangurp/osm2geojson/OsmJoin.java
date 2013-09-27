@@ -224,24 +224,24 @@ public class OsmJoin {
                 relation.put("tags", tags);
             }
             
-//            JsonArray members = array();
-//            while (mm.find()) {
-//                String type = mm.group(1);
-//                Long ref = Long.valueOf(mm.group(2));
-//                String role = mm.group(3);
-//                if ("way".equalsIgnoreCase(type)) {
-//                    members.add(object().put("id", ref).put("type", type).put("role", role).get());
-//                    wayId2RelIdWriter.put("" + ref, "" + relationId);
-//                } else if ("node".equalsIgnoreCase(type)) {
-//                    members.add(object().put("id", ref).put("type", type).put("role", role).get());
-//                    nodeId2RelIdWriter.put("" + ref, "" + relationId);
-//                } else if ("relation".equalsIgnoreCase(type)) {
-//                    // FIXME support relation members as well
-//                } else {
-//                    LOG.warn("unknown member type " + type);
-//                }
-//            }
-//            relation.put("members", members);
+            JsonArray members = array();
+            while (mm.find()) {
+                String type = mm.group(1);
+                Long ref = Long.valueOf(mm.group(2));
+                String role = mm.group(3);
+                if ("way".equalsIgnoreCase(type)) {
+                    members.add(object().put("id", ref).put("type", type).put("role", role).get());
+                    wayId2RelIdWriter.put("" + ref, "" + relationId);
+                } else if ("node".equalsIgnoreCase(type)) {
+                    members.add(object().put("id", ref).put("type", type).put("role", role).get());
+                    nodeId2RelIdWriter.put("" + ref, "" + relationId);
+                } else if ("relation".equalsIgnoreCase(type)) {
+                    // FIXME support relation members as well
+                } else {
+                    LOG.warn("unknown member type " + type);
+                }
+            }
+            relation.put("members", members);
             relationsWriter.put("" + relationId, relation.toString());
         } else {
             problemRelations.write(input + '\n');

@@ -64,7 +64,7 @@ public class OsmJoinTest {
         String input = ResourceUtil.string(getClass().getResourceAsStream("relation1.xml"));
         join.parseRelation(relationsWriter, new BufferedWriter(new StringWriter()),
                 nodeId2wayWriter, wayId2RelWriter, input);     
-        assertThat(1, equalTo(relMap.size()));
-        assertThat(4, equalTo(wayId2relMap.size()));
+        assertThat(relMap.size(), equalTo(1));
+        assertThat(wayId2relMap.size(), equalTo(4));
     }
 }
