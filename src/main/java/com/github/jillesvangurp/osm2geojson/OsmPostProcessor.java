@@ -250,7 +250,7 @@ public class OsmPostProcessor {
     public void processRelations(LineIterable lineIterable, int logModulo) {
         try {
             try (JsonWriter writer = createJsonWriter(OsmType.RELATION);
-                    LoggingCounter counter = LoggingCounter.counter(LOG, "process ways", "ways", logModulo)) {
+                    LoggingCounter counter = LoggingCounter.counter(LOG, "process relations", "relations", logModulo)) {
                 Processor<String, JsonObject> p = compose(entryParsingProcessor, jsonParsingProcessor, new Processor<JsonObject, JsonObject>() {
                     @Override
                     public JsonObject process(JsonObject input) {
@@ -387,7 +387,7 @@ public class OsmPostProcessor {
 
             } else if ("label".equals(mem.getString("role"))) {
                 if (geoInfo.containsKey("relation_center_node"))
-                    LOG.warn("label already exist? " + geoInfo.get("relation_center_node"));
+                    LOG.warn("label already exist? " + geoInfo.get("relation_center_node") + ", " + id + "," + name);
                 else
                     geoInfo.put("relation_center_node", mem.getString("id"));
             }
