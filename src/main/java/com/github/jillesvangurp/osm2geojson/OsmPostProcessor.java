@@ -28,6 +28,7 @@ import com.jillesvangurp.iterables.LineIterable;
 import com.jillesvangurp.iterables.Processor;
 import java.io.Closeable;
 import java.io.File;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -293,6 +294,13 @@ public class OsmPostProcessor {
         }
     }
 
+    /**
+     * WayManager is used to make arbitrary ordering of the ways possible and
+     * they'll be connected via their id. See e.g. 'Landkreis Hof'
+     * http://www.openstreetmap.org/browse/relation/2145179 which has a multi
+     * polygon and 'Way 235603311' is not at the correct place (between "Way
+     * Germany - Czech Republic (166216396)" and "Way 148994491")
+     */
     class WayManager {
 
         private final Object relId;
@@ -317,12 +325,16 @@ public class OsmPostProcessor {
             return e;
         }
 
+        public boolean remove(long id) {
+            return nodeIds2Ways.remove(id) != null;
+        }
+
         public void add(JsonArray arr) {
             long firstId = arr.get(0).asObject().getLong("id");
             long lastId = arr.get(arr.size() - 1).asObject().getLong("id");
 
             add(firstId, lastId, arr);
-
+            // do not use Collection.reverse here as it also changes old arr
             add(lastId, firstId, reverse(arr));
         }
 
@@ -348,7 +360,10 @@ public class OsmPostProcessor {
         }
     }
 
-    /* every id belongs to two arrays */
+    /**
+     * Every id belongs to two arrays. Helpful to traverse and connect/build one
+     * polygon
+     */
     class NodeIdEntry {
 
         long id;
@@ -361,24 +376,21 @@ public class OsmPostProcessor {
         }
     }
 
+    /**
+     * Creates (multi) polygon out of the provides ways. Algorithm is robust if
+     * out of order. But there is currently no guarantee which ensures the
+     * orientation of the area (e.g. counter clockwise). Only outer ways for now
+     * are recognized.
+     */
     protected void handleRelation(JsonObject input, JsonObject output) {
-        // TODO ensure orientation of the area (e.g. counter clockwise)
-        // TODO use admin_centre for center and create boundary out of place tag and distance heuristic
-        // http://wiki.openstreetmap.org/wiki/Relation:boundary
-
-        JsonArray coordinates = array();
         Map<String, JsonObject> ways = new HashMap<>();
-        // WayManager is used to make arbitrary ordering of the ways possible and they'll be connected
-        // via their id. See e.g. 'Landkreis Hof' http://www.openstreetmap.org/browse/relation/2145179
-        // which has a multi polygon and 'Way 235603311' is not at the correct place (between "Way Germany - Czech Republic (166216396)" and "Way 148994491")
         Object id = input.getObject("tags").get("id");
         String name = input.getObject("tags").get("name").asString();
-        WayManager wayManager = new WayManager(id, name);
         for (JsonObject w : input.getArray("ways").objects()) {
             ways.put(w.getString("id"), w);
-
         }
-        // for administration boundaries we only need outer ways    
+
+        WayManager wayManager = new WayManager(id, name);
         for (JsonObject mem : input.getArray("members").objects()) {
             String role = mem.getString("role");
             if ("outer".equals(role)) {
@@ -386,7 +398,6 @@ public class OsmPostProcessor {
                 wayManager.add(w.getArray("nodes"));
 
             } else if ("admin_centre".equals(role) && "node".equals(mem.getString("type"))) {
-                // TODO if there is a label only use that as alternative?
                 if (output.containsKey("admin_centre"))
                     LOG.warn("multiple admin_centre exist!? " + output.get("admin_centre") + ", " + id + "," + name);
                 else
@@ -394,24 +405,28 @@ public class OsmPostProcessor {
             }
         }
 
-        if (!wayManager.isEmpty()) {
+        JsonArray coordinates = array();
+        while (!wayManager.isEmpty()) {
             NodeIdEntry first = wayManager.getFirst(), e = first;
             long nextId = e.firstNextId;
             JsonArray arr = e.first;
+            JsonArray outerBoundary = array();
             if (!arr.isEmpty())
-                coordinates.add(arr.get(0).asObject().getArray("l"));
-            while (true) {
-                if (arr == null)
-                    throw new IllegalStateException("Array must not be null. Something is wrong with: " + input);
+                outerBoundary.add(arr.get(0).asObject().getArray("l"));
 
-                // skip the first of every way
+            // now loop through the ways until one polygon is formed
+            while (true) {
+                // skip the first coordinate of every way to avoid duplicates
                 for (int i = 1; i < arr.size(); i++) {
                     JsonObject n = arr.get(i).asObject();
-                    coordinates.add(n.getArray("l"));
+                    outerBoundary.add(n.getArray("l"));
                 }
                 long oldId = e.id;
+                if (!wayManager.remove(e.id))
+                    throw new IllegalStateException("Cannot remove id " + e.id + ". Something went wrong " + input);
+
                 e = wayManager.get(nextId);
-                if (e == first)
+                if (e == null)
                     break;
 
                 if (oldId == e.firstNextId) {
@@ -421,21 +436,37 @@ public class OsmPostProcessor {
                     nextId = e.firstNextId;
                     arr = e.first;
                 }
+                if (arr == null)
+                    throw new IllegalStateException("Array must not be null. Something is wrong with: " + input);
             }
+
+            if (outerBoundary.isEmpty())
+                continue;
+
+            if (!outerBoundary.get(0).equals(outerBoundary.get(outerBoundary.size() - 1)))
+                continue;
+
+            JsonArray polygon = array();
+            polygon.add(outerBoundary);
+            // no holes supported yet
+            // polygon.add(holes);
+            coordinates.add(polygon);
         }
 
         if (coordinates.isEmpty())
             return;
 
-        String type = "LineString";
-        if (coordinates.get(0).equals(coordinates.get(coordinates.size() - 1))) {
-            type = "Polygon";
-            JsonArray cs = coordinates;
-            coordinates = array();
-            coordinates.add(cs);
+        JsonObject geometry;
+        if (coordinates.size() == 1) {
+            // A polygon is defined by a list of a list of points. The first and last points in each
+            // list must be the same (the polygon must be closed). The first array represents the outer 
+            // boundary of the polygon (unsupported: the other arrays represent the interior shapes (holes))
+            geometry = $(_("type", "Polygon"), _("coordinates", coordinates.get(0)));
+        } else {
+            // multiple polygons
+            geometry = $(_("type", "MultiPolygon"), _("coordinates", coordinates));
         }
-        JsonObject geometry = $(_("type", type), _("coordinates", coordinates));
-        output.put("geometry", geometry);        
+        output.put("geometry", geometry);
     }
 
     public static JsonArray reverse(JsonArray arr) {

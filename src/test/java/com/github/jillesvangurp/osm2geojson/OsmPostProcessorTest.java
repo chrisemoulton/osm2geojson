@@ -58,20 +58,19 @@ public class OsmPostProcessorTest {
         JsonObject o = list.get(0).get("geometry").asObject();
         assertThat(o.getString("type"), is("Polygon"));
         JsonArray arr = o.getArray("coordinates").get(0).asArray();
-        assertThat(arr.size(), equalTo(7));
+        // 1,2,12,13,14,45,1
+        assertThat(arr.toString(), equalTo("[[0,1],[1,0],[2,1],[1.6,1.5],[1,1.6],[0.4,1.5],[0,1]]"));
 
-        assertThat(arr.get(2).toString(), equalTo("[2,1]"));
-        
         // reverse order of what is in members
         // 2nd way. way id 146126567
         assertThat(list.get(2).getObject("geometry").getArray("coordinates").get(0).asArray().get(5).toString(),
                 equalTo("[10.9979997,48.2868964]"));
         // last way. first and last of way id 146086042
         assertThat(list.get(2).getObject("geometry").getArray("coordinates").get(0).asArray().get(0).toString(),
-                equalTo("[10.9505042,48.3266102]"));        
+                equalTo("[10.9505042,48.3266102]"));
         assertThat(list.get(2).getObject("geometry").getArray("coordinates").get(0).asArray().get(9).toString(),
                 equalTo("[11.023158,48.297985]"));
-        
+
         assertThat(list.get(3).toString(), equalTo(list.get(2).toString()));
     }
 }
