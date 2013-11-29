@@ -60,7 +60,7 @@
         "tags":{
             "temp":"SKIP INNER",
             "admin_level":"8",
-            "boundary":"administrative",            
+            "boundary":"administrative"   
         },        
         "nodes":[{
             "id":55,
@@ -73,7 +73,7 @@
         "id":4,
         "tags":{
             "admin_level":"8",
-            "boundary":"administrative",            
+            "boundary":"administrative"        
         },        
         "nodes":[{
             "id":14,

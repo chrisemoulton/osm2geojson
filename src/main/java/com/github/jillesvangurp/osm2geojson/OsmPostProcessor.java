@@ -384,7 +384,7 @@ public class OsmPostProcessor {
      */
     protected void handleRelation(JsonObject input, JsonObject output) {
         Map<String, JsonObject> ways = new HashMap<>();
-        Object id = input.getObject("tags").get("id");
+        Object id = input.get("id");
         String name = input.getObject("tags").get("name").asString();
         for (JsonObject w : input.getArray("ways").objects()) {
             ways.put(w.getString("id"), w);
@@ -395,7 +395,12 @@ public class OsmPostProcessor {
             String role = mem.getString("role");
             if ("outer".equals(role)) {
                 JsonObject w = ways.get(mem.getString("id"));
-                wayManager.add(w.getArray("nodes"));
+                if (w == null) {
+                    // some boundaries could be directly on boundaries of import and are only partially available
+                    LOG.warn("SKIPPING relation " + id + " - relation is probably out of import-boundary. Found no id " + mem.getString("id") + " in " + ways);
+                    return;
+                } else
+                    wayManager.add(w.getArray("nodes"));
 
             } else if ("admin_centre".equals(role) && "node".equals(mem.getString("type"))) {
                 if (output.containsKey("admin_centre"))
