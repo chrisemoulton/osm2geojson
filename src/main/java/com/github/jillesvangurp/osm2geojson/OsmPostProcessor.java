@@ -396,7 +396,7 @@ public class OsmPostProcessor {
             if ("outer".equals(role)) {
                 JsonObject w = ways.get(mem.getString("id"));
                 if (w == null) {
-                    // some boundaries could be directly on boundaries of import and are only partially available
+                    // some boundaries could be directly on the boundary of the import data and are only partially available
                     LOG.warn("SKIPPING relation " + id + " - relation is probably out of import-boundary. Found no id " + mem.getString("id") + " in " + ways);
                     return;
                 } else
