@@ -383,6 +383,7 @@ public class OsmPostProcessor {
      * are recognized.
      */
     protected void handleRelation(JsonObject input, JsonObject output) {
+        // TODO https://wiki.openstreetmap.org/wiki/Relation:multipolygon/Algorithm
         Map<String, JsonObject> ways = new HashMap<>();
         Object id = input.get("id");
         String name = input.getObject("tags").get("name").asString();
@@ -390,6 +391,7 @@ public class OsmPostProcessor {
             ways.put(w.getString("id"), w);
         }
 
+        String label = null;
         WayManager wayManager = new WayManager(id, name);
         for (JsonObject mem : input.getArray("members").objects()) {
             String role = mem.getString("role");
@@ -402,13 +404,22 @@ public class OsmPostProcessor {
                 } else
                     wayManager.add(w.getArray("nodes"));
 
-            } else if ("admin_centre".equals(role) && "node".equals(mem.getString("type"))) {
-                if (output.containsKey("admin_centre"))
-                    LOG.warn("multiple admin_centre exist!? " + output.get("admin_centre") + ", " + id + "," + name);
-                else
-                    output.put("admin_centre", mem.getString("id"));
+            } else if ("node".equals(mem.getString("type"))) {
+                if ("admin_centre".equals(role)) {
+                    // always overwrite existing admin_centre
+                    if (output.containsKey("admin_centre"))
+                        LOG.warn("multiple admin_centre exist!? " + output.get("admin_centre") + ", " + id + "," + name);
+                    else
+                        output.put("admin_centre", mem.getString("id"));
+                } else if ("label".equals(role)) {
+                    label = mem.getString("id");
+                }
             }
         }
+        
+        // fall back to label if no admin centre
+        if (label != null && !output.containsKey("admin_centre"))
+            output.put("admin_centre", label);
 
         JsonArray coordinates = array();
         while (!wayManager.isEmpty()) {
