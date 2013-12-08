@@ -405,31 +405,31 @@ public class OsmJoin {
         StopWatch processTimer = StopWatch.time(LOG, "process " + osmxml);
 
         StopWatch timer;
-        timer = StopWatch.time(LOG, "splitting " + osmxml);
+        timer = StopWatch.time(LOG, "1. splitting " + osmxml);
         splitAndEmit(osmxml);
         timer.stop();
 
-        timer = StopWatch.time(LOG, "create " + WAY_ID_NODE_JSON_MAP);
+        timer = StopWatch.time(LOG, "2. create " + WAY_ID_NODE_JSON_MAP);
         createWayId2NodeJsonMap(NODE_ID_WAY_ID_MAP, NODE_ID_NODEJSON_MAP, WAY_ID_NODE_JSON_MAP);
         timer.stop();
 
-        timer = StopWatch.time(LOG, "create " + WAY_ID_NODE_JSON_MAP);
+        timer = StopWatch.time(LOG, "3. create " + WAY_ID_COMPLETE_JSON);
         createWayId2CompleteJsonMap(WAY_ID_WAYJSON_MAP, WAY_ID_NODE_JSON_MAP, WAY_ID_COMPLETE_JSON);
         timer.stop();
 
-        timer = StopWatch.time(LOG, "create " + REL_ID_NODE_JSON_MAP);
+        timer = StopWatch.time(LOG, "4. create " + REL_ID_NODE_JSON_MAP);
         createRelId2NodeJsonMap(NODE_ID_REL_ID_MAP, NODE_ID_NODEJSON_MAP, REL_ID_NODE_JSON_MAP);
         timer.stop();
 
-        timer = StopWatch.time(LOG, "create " + REL_ID_JSON_WITH_NODES);
+        timer = StopWatch.time(LOG, "5. create " + REL_ID_JSON_WITH_NODES);
         createRelId2JsonWithNodes(REL_ID_RELJSON_MAP, REL_ID_NODE_JSON_MAP, REL_ID_JSON_WITH_NODES);
         timer.stop();
 
-        timer = StopWatch.time(LOG, "create " + REL_ID_WAY_JSON_MAP);
+        timer = StopWatch.time(LOG, "6. create " + REL_ID_WAY_JSON_MAP);
         createRelId2WayJsonMap(WAY_ID_REL_ID_MAP, WAY_ID_COMPLETE_JSON, REL_ID_WAY_JSON_MAP);
         timer.stop();
 
-        timer = StopWatch.time(LOG, "create " + REL_ID_COMPLETE_JSON);
+        timer = StopWatch.time(LOG, "7. create " + REL_ID_COMPLETE_JSON);
         createRelId2CompleteJson(REL_ID_JSON_WITH_NODES, REL_ID_WAY_JSON_MAP, REL_ID_COMPLETE_JSON);
         timer.stop();
 
