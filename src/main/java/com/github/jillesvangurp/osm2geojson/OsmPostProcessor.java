@@ -28,7 +28,6 @@ import com.jillesvangurp.iterables.LineIterable;
 import com.jillesvangurp.iterables.Processor;
 import java.io.Closeable;
 import java.io.File;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -46,9 +45,9 @@ public class OsmPostProcessor {
     private final EntryParsingProcessor entryParsingProcessor = new EntryParsingProcessor();
     private final Processor<Entry<String, String>, JsonObject> jsonParsingProcessor;
     private String dir = "./";
-    private int threadPoolSize = 4;
-    private int readBlockSize = 10;
-    private int queueSize = 100;
+    private int readBlockSize = 100;
+    private int threadPoolSize = 4;    
+    private int queueSize = 10000;
 
     public OsmPostProcessor(JsonParser jsonParser) {
         jsonParsingProcessor = new NodeJsonParsingProcessor(jsonParser);
@@ -164,7 +163,8 @@ public class OsmPostProcessor {
                         return geoJson;
                     }
                 });
-                try (ConcurrentProcessingIterable<String, JsonObject> concIt = processConcurrently(lineIterable, p, readBlockSize, threadPoolSize, queueSize)) {
+                try (ConcurrentProcessingIterable<String, JsonObject> concIt = 
+                        processConcurrently(lineIterable, p, readBlockSize, threadPoolSize, queueSize)) {
                     for (JsonObject o : concIt) {
                         if (o != null) {
                             writer.add(o);
@@ -209,7 +209,8 @@ public class OsmPostProcessor {
                         return geoJson;
                     }
                 });
-                try (ConcurrentProcessingIterable<String, JsonObject> concIt = processConcurrently(lineIterable, p, readBlockSize, threadPoolSize, queueSize)) {
+                try (ConcurrentProcessingIterable<String, JsonObject> concIt = 
+                        processConcurrently(lineIterable, p, readBlockSize, threadPoolSize, queueSize)) {
                     for (JsonObject o : concIt) {
                         if (o != null) {
                             writer.add(o);
@@ -279,7 +280,8 @@ public class OsmPostProcessor {
                         return geoJson;
                     }
                 });
-                try (ConcurrentProcessingIterable<String, JsonObject> concIt = processConcurrently(lineIterable, p, readBlockSize, threadPoolSize, queueSize)) {
+                try (ConcurrentProcessingIterable<String, JsonObject> concIt = 
+                        processConcurrently(lineIterable, p, readBlockSize, threadPoolSize, queueSize)) {
                     for (JsonObject o : concIt) {
                         if (o != null) {
                             writer.add(o);
@@ -305,7 +307,7 @@ public class OsmPostProcessor {
 
         private final Object relId;
         private final String name;
-        private Map<Long, NodeIdEntry> nodeIds2Ways = new LinkedHashMap<>();
+        private final Map<Long, NodeIdEntry> nodeIds2Ways = new LinkedHashMap<>();
 
         public WayManager(Object relId, String name) {
             this.relId = relId;
