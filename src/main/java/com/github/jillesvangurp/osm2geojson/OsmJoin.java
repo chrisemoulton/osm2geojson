@@ -58,10 +58,10 @@ public class OsmJoin {
     private final String workDirectory;
     private final JsonParser parser;
     // choose a bucket size that will fit in memory. Larger means less bucket files and more ram are used.
-    private int bucketSize = 500000;
+    private int bucketSize = 200000;
     private int blockSize = 100;
-    private int threadPoolSize = 4;    
-    private int queueSize = 500000;
+    private int threadPoolSize = 8;    
+    private int queueSize = 1000000;
 
     public OsmJoin(String workDirectory, JsonParser parser) {
         this.parser = parser;

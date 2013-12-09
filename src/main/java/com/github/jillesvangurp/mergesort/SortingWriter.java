@@ -23,47 +23,45 @@ import com.google.common.collect.TreeMultimap;
 import com.jillesvangurp.iterables.LineIterable;
 
 /**
- * Takes key value parameters and produces a file with lines of key;value sorted by key. Implements merge sort and uses
- * a temp directory to store in between files so it can sort more data than fits into memory.
+ * Takes key value parameters and produces a file with lines of key;value sorted
+ * by key. Implements merge sort and uses a temp directory to store in between
+ * files so it can sort more data than fits into memory.
  */
 public class SortingWriter implements Closeable {
-    private static Logger LOG=LoggerFactory.getLogger(SortingWriter.class);
+
+    private static final Logger LOG = LoggerFactory.getLogger(SortingWriter.class);
 
     private final String output;
     private final int bucketSize;
     private int currentBucket = 0;
     private final List<String> bucketFiles = new ArrayList<>();
-
-    Multimap<String, String> bucket = Multimaps.synchronizedMultimap(TreeMultimap.<String,String>create());
+    private Multimap<String, String> bucket = Multimaps.synchronizedMultimap(TreeMultimap.<String,String>create());
     private final String tempDir;
-
-    ReadWriteLock bucketLock = new ReentrantReadWriteLock();
-
+    private final ReadWriteLock bucketLock = new ReentrantReadWriteLock();
     private final LoggingCounter loggingCounter;
 
     /**
-     * @param tempDir
-     *            this directory is used for bucket files. Note. this class will blindly overwrite any pre-existing
-     *            bucket files.
-     * @param output
-     *            the file with the sorted output.
-     * @param bucketSize
-     *            the number of entries in the bucket. Each bucket is sorted in memory before being written to disk.
-     *            Ensure you have enough memory available for doing this for a given bucket size.
+     * @param tempDir this directory is used for bucket files. Note. this class
+     * will blindly overwrite any pre-existing bucket files.
+     * @param output the file with the sorted output.
+     * @param bucketSize the number of entries in the bucket. Each bucket is
+     * sorted in memory before being written to disk. Ensure you have enough
+     * memory available for doing this for a given bucket size.
      * @throws IOException
      */
     public SortingWriter(String tempDir, String output, int bucketSize) throws IOException {
         this.tempDir = tempDir;
         this.output = output;
         this.bucketSize = bucketSize;
-        if(StringUtils.isNotEmpty(tempDir)) {
+        if (StringUtils.isNotEmpty(tempDir)) {
             FileUtils.forceMkdir(new File(tempDir));
         }
-        loggingCounter = LoggingCounter.counter(LOG, "sort buckets " + output , "lines", 100000);
+        loggingCounter = LoggingCounter.counter(LOG, "sort buckets " + output, "lines", 100000);
     }
 
     /**
      * Add an element to the sorted file.
+     *
      * @param key the key to sort on
      * @param value the value
      */
@@ -74,7 +72,7 @@ public class SortingWriter implements Closeable {
         bucketLock.readLock().lock();
         try {
             boolean added = bucket.put(key, value);
-            if(!added) {
+            if (!added) {
                 // TODO better alternative than log?
                 // LOG.warn("failed to add " +key+";"+value);
             } else {
@@ -86,21 +84,21 @@ public class SortingWriter implements Closeable {
     }
 
     private void flushBucket(boolean skipSizeCheck) {
-        Multimap<String, String> oldBucket=null;
-        int bucketNr=-1;
+        Multimap<String, String> oldBucket = null;
+        int bucketNr = -1;
         bucketLock.writeLock().lock();
         try {
-            if(bucket.size() > bucketSize || skipSizeCheck) {
+            if (bucket.size() > bucketSize || skipSizeCheck) {
                 // atomically switch over the bucket and then write the old one
                 oldBucket = bucket;
-                bucketNr= currentBucket;
+                bucketNr = currentBucket;
                 currentBucket++;
-                bucket = Multimaps.synchronizedMultimap(TreeMultimap.<String,String>create());
+                bucket = Multimaps.synchronizedMultimap(TreeMultimap.<String, String>create());
             }
         } finally {
             bucketLock.writeLock().unlock();
         }
-        if(oldBucket != null) {
+        if (oldBucket != null) {
             File file = new File(tempDir, "bucket-" + bucketNr + ".gz");
 
             try (BufferedWriter bw = ResourceUtil.gzipFileWriter(file.getAbsolutePath())) {
@@ -121,7 +119,7 @@ public class SortingWriter implements Closeable {
             flushBucket(true);
         }
         loggingCounter.close();
-        LoggingCounter mergeCounter = LoggingCounter.counter(LOG, "merge buckets into "  + output, " lines", 1000000);
+        LoggingCounter mergeCounter = LoggingCounter.counter(LOG, "merge buckets into " + output, " lines", 1000000);
         List<LineIterable> lineIterables = new ArrayList<>();
         try {
             // important, ensure you have enough filehandles available for the number of buckets. In Linux, you may need to configure this. See README.

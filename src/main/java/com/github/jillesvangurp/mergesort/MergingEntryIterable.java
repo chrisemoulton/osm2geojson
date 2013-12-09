@@ -25,7 +25,7 @@ public class MergingEntryIterable implements Iterable<Entry<String,String>>{
 
     @Override
     public Iterator<Entry<String, String>> iterator() {
-        // use a priority queue to ensure that the iterable with the next entry is at the had of the queue.
+        // use a priority queue to ensure that the iterable with the next entry is at the head of the queue.
         final PriorityQueue<PeekableIterator<Entry<String,String>>> iterators = new PriorityQueue<>(iterables.size(), new Comparator<PeekableIterator<Entry<String,String>>>() {
 
             @Override
