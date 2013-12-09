@@ -39,6 +39,7 @@ public class SortingWriter implements Closeable {
     private final String tempDir;
     private final ReadWriteLock bucketLock = new ReentrantReadWriteLock();
     private final LoggingCounter loggingCounter;
+    private int logCount = 1000000;
 
     /**
      * @param tempDir this directory is used for bucket files. Note. this class
@@ -56,7 +57,7 @@ public class SortingWriter implements Closeable {
         if (StringUtils.isNotEmpty(tempDir)) {
             FileUtils.forceMkdir(new File(tempDir));
         }
-        loggingCounter = LoggingCounter.counter(LOG, "sort buckets " + output, "lines", 100000);
+        loggingCounter = LoggingCounter.counter(LOG, "sort buckets " + output, "lines", logCount);
     }
 
     /**
@@ -119,7 +120,7 @@ public class SortingWriter implements Closeable {
             flushBucket(true);
         }
         loggingCounter.close();
-        LoggingCounter mergeCounter = LoggingCounter.counter(LOG, "merge buckets into " + output, " lines", 1000000);
+        LoggingCounter mergeCounter = LoggingCounter.counter(LOG, "merge buckets into " + output, " lines", logCount);
         List<LineIterable> lineIterables = new ArrayList<>();
         try {
             // important, ensure you have enough filehandles available for the number of buckets. In Linux, you may need to configure this. See README.
