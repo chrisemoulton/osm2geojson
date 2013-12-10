@@ -30,13 +30,13 @@ public class EntryJoiningIterable implements Iterable<JoinedEntries> {
     }
 
     public static void join(String leftMapFile, String rightMapFile, Processor<JoinedEntries, Boolean> processor,
-            int threadPoolSize, int readBlockSize, int queueSize) {
+            int readBlockSize, int threadPoolSize, int queueSize) {
         try {
             try (LineIterable l = LineIterable.openGzipFile(leftMapFile)) {
                 try (LineIterable r = LineIterable.openGzipFile(rightMapFile)) {
                     EntryJoiningIterable iterable = new EntryJoiningIterable(l, r);
                     try (ConcurrentProcessingIterable<JoinedEntries, Boolean> concIt
-                            = processConcurrently(iterable, processor, threadPoolSize, readBlockSize, queueSize)) {
+                            = processConcurrently(iterable, processor, readBlockSize, threadPoolSize, queueSize)) {
                         consume(concIt);
                     } catch (IOException e) {
                         throw new IllegalStateException(e);

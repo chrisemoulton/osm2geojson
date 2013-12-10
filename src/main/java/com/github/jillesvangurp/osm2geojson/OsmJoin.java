@@ -58,10 +58,10 @@ public class OsmJoin {
     private final String workDirectory;
     private final JsonParser parser;
     // choose a bucket size that will fit in memory. Larger means less bucket files and more ram are used.
-    private int bucketSize = 200000;
-    private int blockSize = 100;
+    private int bucketSize = 500000;
+    private int blockSize = 1000;
     private int threadPoolSize = 8;    
-    private int queueSize = 1000000;
+    private int queueSize = 10000;
 
     public OsmJoin(String workDirectory, JsonParser parser) {
         this.parser = parser;
@@ -267,7 +267,7 @@ public class OsmJoin {
 
                     return true;
                 }
-            }, blockSize, threadPoolSize, queueSize);
+            }, blockSize / 10, threadPoolSize, queueSize / 10);
         } catch (IOException e) {
             throw new IllegalStateException("exception while closing sorted writer " + outputFile, e);
         }
@@ -275,7 +275,7 @@ public class OsmJoin {
 
     private void createWayId2CompleteJsonMap(String wayIdWayjsonMap, String wayIdNodeJsonMap, String outputFile) {
         // json blobs are quite big, so reducing bucket size
-        try (SortingWriter out = sortingWriter(outputFile, bucketSize / 2)) {
+        try (SortingWriter out = sortingWriter(outputFile, bucketSize / 10)) {
             EntryJoiningIterable.join(wayIdWayjsonMap, wayIdNodeJsonMap, new Processor<JoinedEntries, Boolean>() {
                 @Override
                 public Boolean process(JoinedEntries joined) {
@@ -300,7 +300,7 @@ public class OsmJoin {
                     out.put(wayEntry.getKey(), way.toString());
                     return true;
                 }
-            }, blockSize, threadPoolSize, queueSize);
+            }, blockSize / 10, threadPoolSize, queueSize / 10);
 
         } catch (IOException e) {
             throw new IllegalStateException("exception while closing sorted writer " + outputFile, e);
@@ -308,7 +308,7 @@ public class OsmJoin {
     }
 
     private void createRelId2NodeJsonMap(String nodeIdRelIdMap, String nodeIdNodejsonMap, String outputFile) {
-        try (SortingWriter out = sortingWriter(outputFile, bucketSize)) {
+        try (SortingWriter out = sortingWriter(outputFile, bucketSize / 50)) {
             EntryJoiningIterable.join(nodeIdRelIdMap, nodeIdNodejsonMap, new Processor<JoinedEntries, Boolean>() {
                 @Override
                 public Boolean process(JoinedEntries joined) {
@@ -319,7 +319,7 @@ public class OsmJoin {
                     }
                     return true;
                 }
-            }, blockSize, threadPoolSize, queueSize);
+            }, blockSize / 10, threadPoolSize, queueSize / 10);
 
         } catch (IOException e) {
             throw new IllegalStateException("exception while closing sorted writer " + outputFile, e);
@@ -328,7 +328,7 @@ public class OsmJoin {
     }
 
     private void createRelId2JsonWithNodes(String relIdReljsonMap, String relIdNodeJsonMap, String outputFile) {
-        try (SortingWriter out = sortingWriter(outputFile, bucketSize)) {
+        try (SortingWriter out = sortingWriter(outputFile, bucketSize / 5)) {
             EntryJoiningIterable.join(relIdReljsonMap, relIdNodeJsonMap, new Processor<JoinedEntries, Boolean>() {
                 @Override
                 public Boolean process(JoinedEntries joined) {
@@ -345,7 +345,7 @@ public class OsmJoin {
 
                     return true;
                 }
-            }, blockSize, threadPoolSize, queueSize);
+            }, blockSize / 10, threadPoolSize, queueSize / 10);
 
         } catch (IOException e) {
             throw new IllegalStateException("exception while closing sorted writer " + outputFile, e);
@@ -353,7 +353,7 @@ public class OsmJoin {
     }
 
     private void createRelId2WayJsonMap(String wayIdRelIdMap, String wayIdWayjsonMap, String outputFile) {
-        try (SortingWriter out = sortingWriter(outputFile, bucketSize)) {
+        try (SortingWriter out = sortingWriter(outputFile, bucketSize / 5)) {
             EntryJoiningIterable.join(wayIdRelIdMap, wayIdWayjsonMap, new Processor<JoinedEntries, Boolean>() {
                 @Override
                 public Boolean process(JoinedEntries joined) {
@@ -364,7 +364,7 @@ public class OsmJoin {
                     }
                     return true;
                 }
-            }, blockSize, threadPoolSize, queueSize);
+            }, blockSize / 10, threadPoolSize, queueSize / 10);
 
         } catch (IOException e) {
             throw new IllegalStateException("exception while closing sorted writer " + outputFile, e);
@@ -373,7 +373,7 @@ public class OsmJoin {
 
     private void createRelId2CompleteJson(String relIdJsonWithNodes, String relIdWayJsonMap, String outputFile) {
         // relations can be extremely large, so reduce bucket size even further
-        try (SortingWriter out = sortingWriter(outputFile, bucketSize)) {
+        try (SortingWriter out = sortingWriter(outputFile, bucketSize / 50)) {
             EntryJoiningIterable.join(relIdJsonWithNodes, relIdWayJsonMap, new Processor<JoinedEntries, Boolean>() {
                 @Override
                 public Boolean process(JoinedEntries joined) {
@@ -389,7 +389,7 @@ public class OsmJoin {
                     }
                     return true;
                 }
-            }, blockSize, threadPoolSize, queueSize);
+            }, blockSize / 10, threadPoolSize, queueSize / 10);
 
         } catch (IOException e) {
             throw new IllegalStateException("exception while closing sorted writer " + outputFile, e);
