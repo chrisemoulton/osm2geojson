@@ -29,8 +29,9 @@ import org.apache.commons.lang.StringUtils;
 import com.jillesvangurp.iterables.LineIterable;
 
 /**
- * Iterates over the open street map xml and yields one parseable node, way, or relation xml string blob each time next
- * is called. Using this class, you can use a simple for loop to loop over the xml.
+ * Iterates over the open street map xml and yields one parseable node, way, or
+ * relation xml string blob each time next is called. Using this class, you can
+ * use a simple for loop to loop over the xml.
  */
 public final class OsmBlobIterable implements Iterable<String> {
 
@@ -57,9 +58,9 @@ public final class OsmBlobIterable implements Iterable<String> {
                     while (it.hasNext() && next == null) {
                         line = it.next();
                         if (line.length() > 0) {
-                            String stripped=StringUtils.strip(line);
+                            String stripped = StringUtils.strip(line);
                             if (stripped.startsWith("<node")) {
-                                buf.delete(0, buf.length());
+                                buf.setLength(0);
                                 buf.append(line);
                                 if (!fastEndsWith(stripped, "/>")) {
                                     while (!fastEndsWith(StringUtils.strip(line), "</node>")) {
@@ -69,7 +70,7 @@ public final class OsmBlobIterable implements Iterable<String> {
                                 }
                                 next = StringUtils.strip(buf.toString());
                             } else if (stripped.startsWith("<way")) {
-                                buf.delete(0, buf.length());
+                                buf.setLength(0);
                                 buf.append(line);
                                 if (!fastEndsWith(line, "/>")) {
                                     while (!fastEndsWith(StringUtils.strip(line), "</way>")) {
@@ -79,7 +80,7 @@ public final class OsmBlobIterable implements Iterable<String> {
                                 }
                                 next = StringUtils.strip(buf.toString());
                             } else if (stripped.startsWith("<relation")) {
-                                buf.delete(0, buf.length());
+                                buf.setLength(0);
                                 buf.append(line);
                                 if (!fastEndsWith(line, "/>")) {
                                     while (!fastEndsWith(StringUtils.strip(line), "</relation>")) {

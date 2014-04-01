@@ -107,11 +107,12 @@ public class OsmJoin {
                     @Override
                     public Boolean process(String blob) {
                         try {
-                            if (blob.trim().startsWith("<node")) {
+                            blob = blob.trim();
+                            if (blob.startsWith("<node")) {
                                 parseNode(nodesWriter, problemNodes, blob);
-                            } else if (blob.trim().startsWith("<way")) {
+                            } else if (blob.startsWith("<way")) {
                                 parseWay(waysWriter, problemWays, nodeid2WayidWriter, blob);
-                            } else if (blob.trim().startsWith("<relation")) {
+                            } else if (blob.startsWith("<relation")) {
                                 parseRelation(relationsWriter, problemRelations, nodeId2RelIdWriter, wayId2RelIdWriter, blob);
                             } else {
                                 LOG.error("unexpected blob type\n" + blob);
@@ -122,7 +123,6 @@ public class OsmJoin {
                             LOG.error("unexpected error " + e.getMessage(), e);
                             return false;
                         }
-
                     }
                 };
                 try (ConcurrentProcessingIterable<String, Boolean> it =
